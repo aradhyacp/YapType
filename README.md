@@ -91,6 +91,10 @@ account, token, or keychain credential is needed.
 7. Hold **⌘;** anywhere and start talking. Release to paste. A quick tap starts toggle mode; press again to stop.
    **Esc** cancels the current recording. **⌘⇧;** uses the alternate tone for the frontmost app.
 
+By default every app uses the **Professional** tone: normal sentence case, punctuation, and paragraph/list layout.
+If you want a different style for a particular app, add an override under **Style › Apps**. Otherwise leave the
+Apps list empty so every app gets the same formatting.
+
 ## Models
 
 Parakeet is downloaded automatically on first launch into:
@@ -124,6 +128,8 @@ Useful fields:
 | `asrVersion` | `"v2"` (English) or `"v3"` (multilingual). |
 | `dictionary` | Terms and sound-alikes, e.g. `"Yaptype: yap type, yap-type"`. |
 | `tones` | Name → instruction. An empty instruction means verbatim. |
+| `defaultTones` | Tone used by every app, and the alternate tone for ⌘⇧;. Defaults to Professional / Casual. |
+| `appTones` | Optional bundle-ID overrides. Empty by default, so formatting stays consistent everywhere. |
 | `memory` | Background about you for the polish prompt. |
 | `keepClips` | Save each dictation's audio in `clips/` for `--eval`. |
 
@@ -183,6 +189,10 @@ the lid is closed; AirPods work but are narrowband.
 **Text is pasted but not polished.** Add an OpenRouter key in Settings › Polishing. Check the status in the menu bar:
 without a key it says “Ready (rules only…)”. Also check the OpenRouter account has access to the configured models;
 free models can be rate-limited.
+
+**Text comes out lowercase or without punctuation.** Open **Style › Apps**. An app may have an override set to
+Casual or Super casual, or an editor may be set to Verbatim. Remove the override or choose Professional. Yaptype
+ships with Professional as the default for every app.
 
 **The app will not open after a rebuild.** Build and install again with `./scripts/build.sh --install`. The app is
 ad-hoc signed for local use, not notarized for distribution. If Gatekeeper complains, right-click the app and

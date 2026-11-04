@@ -15,19 +15,12 @@ struct Config: Codable {
     var hotkeyKeyCode: UInt16 = 41
     /// Seconds. A press shorter than this switches to toggle mode (tap to start, tap to stop).
     var tapThreshold = 0.5
-    var defaultTones = ToneConfig(tone: "supercasual", alt: "professional")
-    /// Bundle identifier -> tones. Unlisted apps use defaultTones.
-    var appTones: [String: ToneConfig] = [
-        "com.apple.MobileSMS": ToneConfig(tone: "supercasual", alt: "professional"),
-        "net.whatsapp.WhatsApp": ToneConfig(tone: "supercasual", alt: "professional"),
-        "com.tinyspeck.slackmacgap": ToneConfig(tone: "supercasual", alt: "professional"),
-        "com.apple.mail": ToneConfig(tone: "professional", alt: "casual"),
-        "com.google.Chrome": ToneConfig(tone: "professional", alt: "casual"),
-        "com.apple.Safari": ToneConfig(tone: "professional", alt: "casual"),
-        "com.apple.Terminal": ToneConfig(tone: "verbatim", alt: "casual"),
-        "com.googlecode.iterm2": ToneConfig(tone: "verbatim", alt: "casual"),
-        "com.microsoft.VSCode": ToneConfig(tone: "verbatim", alt: "casual"),
-    ]
+    var defaultTones = ToneConfig(tone: "professional", alt: "casual")
+    /// Bundle identifier -> tones. Unlisted apps use defaultTones, which is professional for every app.
+    var appTones: [String: ToneConfig] = [:]
+    /// Bumped when the shipped tone defaults change. Configs written before version 2 are migrated once so existing
+    /// installs stop lowercasing every dictation and stop skipping polish in editors.
+    var tonePresetVersion = 2
     /// Tone name -> extra instruction for the polish model. An empty string means verbatim: skip the model entirely.
     var tones: [String: String] = [
         "supercasual": "Tone: super casual text to a close friend. Everything lowercase, including i, but names keep their capitals. Barely any punctuation: no commas at all, a full stop only between sentences when the message has several and never at the very end, question marks and apostrophes kept, no exclamation marks. Words just flow. Laughter and reactions (haha, lol, oh, wow) stay. Fillers like um and uh are removed.\nExample: \"Um, so, tomorrow is fine. See you then.\" -> \"so tomorrow is fine see you then\"\nExample: \"Haha. No, I really don't want to do it, but can you do it?\" -> \"haha no i really don't want to do it but can you do it?\"\nExample: \"Sure, see you at 5. Bring the charger.\" -> \"sure see you at 5. bring the charger\"\nExample: \"Hey Jordan, thanks a lot for reaching out! Haha, I appreciate the kind thoughts. I also locked in the place a few weeks before. Hope you can find someone to fill the spot soon.\" -> \"hey Jordan thanks a lot for reaching out haha i appreciate the kind thoughts. i also locked in the place a few weeks before hope you can find someone to fill the spot soon\"\nQuotation marks around quoted or mentioned words and titles still apply.",
@@ -37,7 +30,7 @@ struct Config: Codable {
     ]
     /// Names and jargon, one per line: "Term" or "Term: sound-alike, sound-alike". Sound-alikes are replaced by
     /// rules, the term is boosted in speech recognition, and the polish model sees the list.
-    var dictionary: [String] = ["Yaptype: yap type, yap-type, yap tight", "no wait: no wake, no weight, know wait"]
+    var dictionary: [String] = ["Yaptype: yap type, yap-type, yap tight", "VS Code: vs code, vscode, pp code", "no wait: no wake, no weight, know wait"]
     /// Phrases learned from the speaker's corrections that turned out to mean "scratch that" (e.g. "i know" when
     /// the speech model misheard "no wait"). Fed to the polish model and used for routing.
     var learnedSignals: [String] = []
@@ -103,8 +96,16 @@ struct Config: Codable {
         microphone = try c.decodeIfPresent(String.self, forKey: .microphone) ?? d.microphone
         hotkeyKeyCode = try c.decodeIfPresent(UInt16.self, forKey: .hotkeyKeyCode) ?? d.hotkeyKeyCode
         tapThreshold = try c.decodeIfPresent(Double.self, forKey: .tapThreshold) ?? d.tapThreshold
+        let savedTonePreset = try c.decodeIfPresent(Int.self, forKey: .tonePresetVersion) ?? 1
+        tonePresetVersion = max(savedTonePreset, 2)
         defaultTones = try c.decodeIfPresent(ToneConfig.self, forKey: .defaultTones) ?? d.defaultTones
         appTones = try c.decodeIfPresent([String: ToneConfig].self, forKey: .appTones) ?? d.appTones
+        if savedTonePreset < 2 {
+            // The old preset defaulted to supercasual and used verbatim in editors, which produced all-lowercase
+            // or unpolished text depending on the app. Move existing installs to one consistent professional style.
+            defaultTones = d.defaultTones
+            appTones = d.appTones
+        }
         tones = try c.decodeIfPresent([String: String].self, forKey: .tones) ?? d.tones
         dictionary = try c.decodeIfPresent([String].self, forKey: .dictionary) ?? d.dictionary
         memory = try c.decodeIfPresent(String.self, forKey: .memory) ?? d.memory

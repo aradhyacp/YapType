@@ -1,49 +1,15 @@
 {
   "appTones" : {
-    "com.apple.MobileSMS" : {
-      "alt" : "professional",
-      "tone" : "supercasual"
-    },
-    "com.apple.Safari" : {
-      "alt" : "casual",
-      "tone" : "professional"
-    },
-    "com.apple.Terminal" : {
-      "alt" : "casual",
-      "tone" : "verbatim"
-    },
-    "com.apple.mail" : {
-      "alt" : "casual",
-      "tone" : "professional"
-    },
-    "com.google.Chrome" : {
-      "alt" : "casual",
-      "tone" : "professional"
-    },
-    "com.googlecode.iterm2" : {
-      "alt" : "casual",
-      "tone" : "verbatim"
-    },
-    "com.microsoft.VSCode" : {
-      "alt" : "casual",
-      "tone" : "verbatim"
-    },
-    "com.tinyspeck.slackmacgap" : {
-      "alt" : "professional",
-      "tone" : "supercasual"
-    },
-    "net.whatsapp.WhatsApp" : {
-      "alt" : "professional",
-      "tone" : "supercasual"
-    }
+
   },
   "asrVersion" : "v2",
   "defaultTones" : {
-    "alt" : "professional",
-    "tone" : "supercasual"
+    "alt" : "casual",
+    "tone" : "professional"
   },
   "dictionary" : [
     "Yaptype: yap type, yap-type, yap tight",
+    "VS Code: vs code, vscode, pp code",
     "no wait: no wake, no weight, know wait"
   ],
   "fieldContext" : true,
@@ -72,6 +38,7 @@
   "overlay" : true,
   "sounds" : true,
   "tapThreshold" : 0.5,
+  "tonePresetVersion" : 2,
   "tones" : {
     "casual" : "Tone: casual message to a friend or a colleague you are on first-name terms with. Lowercase i and lowercase sentence starts, but names keep their capitals. Normal punctuation: commas between clauses and a full stop at the end of every sentence including the last one, question marks kept, no exclamation marks or semicolons. Contractions and everyday wording stay as spoken, nothing gets formalised. Laughter and reactions (haha, lol, oh, wow) stay. Fillers like um and uh are removed.\nExample: \"Um, so, tomorrow is fine. See you then.\" -> \"so tomorrow is fine. see you then.\"\nExample: \"Haha. No, I really don't want to do it, but can you do it?\" -> \"haha no, i really don't want to do it, but can you do it?\"\nExample: \"Hey Jordan, thanks a lot for reaching out! Haha, I appreciate the kind thoughts. I also locked in the place a few weeks before.\" -> \"hey Jordan, thanks a lot for reaching out haha, i appreciate the kind thoughts. i also locked in the place a few weeks before.\"",
     "professional" : "Tone: message to a colleague or client. Normal capitalization and punctuation, complete sentences, no slang. Keep the speaker's own words and phrasing; fix grammar and remove fillers, but do not reword, formalize or restructure what they said.",
