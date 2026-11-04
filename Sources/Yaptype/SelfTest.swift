@@ -1,0 +1,126 @@
+import Foundation
+
+/// `Yaptype --selftest` runs the rule-layer checks (no Xcode or XCTest needed with the command line tools).
+enum SelfTest {
+    private static var failures = 0
+
+    static func run() -> Bool {
+        failures = 0
+        check("fillers 1", TextRules.stripFillers("Um, so, tomorrow is fine. See you then."), "so, tomorrow is fine. See you then.")
+        check("fillers 2", TextRules.stripFillers("I um I really want to um go"), "I really want to go")
+        check("stutter", TextRules.stripFillers("we we we ship on tuesday tomorrow, tomorrow we look"), "we ship on tuesday tomorrow we look")
+        check("umbrella kept", TextRules.stripFillers("Hmm. The umbrella is there."), "The umbrella is there.")
+        check("newline", TextRules.applyCommands("first line new line second line, new paragraph third"), "first line\nsecond line\n\nthird")
+        check("bullets", TextRules.applyCommands("shopping list bullet point milk bullet point eggs, bullet point bread"), "shopping list\n- milk\n- eggs\n- bread")
+        check("email", TextRules.applyCommands("send it to sam at example dot com today"), "send it to sam@example.com today")
+        check("url", TextRules.applyCommands("go to acmehub dot com dot au"), "go to acmehub.com.au")
+        check("question", TextRules.applyCommands("are you coming question mark"), "are you coming?")
+        check("full stop", TextRules.applyCommands("that's it full stop"), "that's it.")
+        let raw = "okay so the plan is we ship on thursday and then we do the reel for instagram"
+        check("guard ok", TextRules.looksUnfaithful(input: raw, output: "Okay, so the plan is we ship on Thursday and then we do the reel for Instagram.", allowed: []), false)
+        check("guard chatty", TextRules.looksUnfaithful(input: raw, output: "Sure! Here is a cleaned up version of your message about shipping.", allowed: []), true)
+        check("guard short", TextRules.looksUnfaithful(input: raw, output: "Ship Thursday.", allowed: []), true)
+        check("guard dict", TextRules.looksUnfaithful(input: "send the acme hub report to alex by friday please thanks", output: "send the Acme Hub report to alex by friday please thanks", allowed: ["Acme Hub"]), false)
+        check("scratch start", TextRules.stripFillers("Hey so tomorrow, tomorrow is fine, actually scratch that, let's do Thursday instead."), "let's do Thursday instead.")
+        check("scratch mid", TextRules.stripFillers("We agreed on Monday. Then um Tuesday scratch that Wednesday works"), "We agreed on Monday. Wednesday works")
+        check("scratch closed sentence", TextRules.stripFillers("I told him she shouldn't be his girlfriend. She's a horrible person. Never mind. She's a great person, but they're not compatible."), "I told him she shouldn't be his girlfriend. She's a great person, but they're not compatible.")
+        check("scratch nevermind one word", TextRules.stripFillers("send it monday nevermind send it friday"), "send it friday")
+        check("restart clause", TextRules.stripFillers("Starting on a Thursday night, I was invited to a startup event. Because banking people are heaps more, sorry, because startup people are heaps more genuine than banking people, I might have indulged."), "Starting on a Thursday night, I was invited to a startup event. because startup people are heaps more genuine than banking people, I might have indulged.")
+        check("restart sentence", TextRules.stripFillers("today's weather is very quiet sorry today's weather is very sunny"), "today's weather is very sunny")
+        check("restart no wait", TextRules.stripFillers("send it to John no wait send it to Alex by Friday"), "send it to Alex by Friday")
+        check("restart pronoun", TextRules.stripFillers("I want to go, sorry, I need to leave"), "I need to leave")
+        check("apology kept", TextRules.stripFillers("sorry I'm late, the train was delayed"), "sorry I'm late, the train was delayed")
+        check("apology kept 2", TextRules.stripFillers("thanks for the report, sorry I forgot to say the numbers look great"), "thanks for the report, sorry I forgot to say the numbers look great")
+        check("repeat restart", TextRules.stripFillers("look mate i have a thesing what thief i have a few things i want to discuss"), "look mate i have a few things i want to discuss")
+        check("article restart", TextRules.stripFillers("This is fair a fair bit of work"), "This is a fair bit of work")
+        check("article restart kept", TextRules.stripFillers("by the time the time comes we know"), "by the time the time comes we know")
+        check("repeat kept", TextRules.stripFillers("we ship on thursday and we ship on friday"), "we ship on thursday and we ship on friday")
+        check("list ordinals", TextRules.applyLists("i have a few things i want to discuss. firstly, what is it that we're aiming for? secondly, what timeline we're targeting? thirdly, where are we going to execute this?"), "i have a few things i want to discuss.\n- what is it that we're aiming for?\n- what timeline we're targeting?\n- where are we going to execute this?")
+        check("list numbers", TextRules.applyLists("Three things: number one the pricing slide, number two the roadmap."), "Three things:\n- the pricing slide.\n- the roadmap.")
+        check("list single marker", TextRules.applyLists("firstly, thanks for coming"), "firstly, thanks for coming")
+        check("list first adjective", TextRules.applyLists("the first time was fine and the second time too"), "the first time was fine and the second time too")
+        check("swap pronoun", TextRules.stripFillers("i caught a cold from my partner and yeah she actually he was also sick"), "i caught a cold from my partner and yeah he was also sick")
+        check("swap day", TextRules.stripFillers("we ship on Tuesday, actually Thursday, and then rest"), "we ship on Thursday, and then rest")
+        check("swap number", TextRules.stripFillers("bring 5 no 6 chairs"), "bring 6 chairs")
+        check("swap not same class", TextRules.stripFillers("it's actually good and she actually likes it"), "it's actually good and she actually likes it")
+        check("scratch none", TextRules.stripFillers("nothing to scratch here"), "nothing to scratch here")
+        check("num billion dollars", TextRules.applyNumbers("whisperflow is valued at two billion dollars and granola around one point five billion."), "whisperflow is valued at $2 billion and granola around 1.5 billion.")
+        check("num dollars a month", TextRules.applyNumbers("it's twenty dollars a month"), "it's $20 a month")
+        check("num percent", TextRules.applyNumbers("about fifteen percent of users"), "about 15% of users")
+        check("num small stays", TextRules.applyNumbers("i have two things and three ideas"), "i have two things and three ideas")
+        check("num twenty five", TextRules.applyNumbers("twenty five people came"), "25 people came")
+        check("num hundred and fifty", TextRules.applyNumbers("a hundred and fifty dollars"), "$150")
+        check("num thousands", TextRules.applyNumbers("about twenty thousand people"), "about 20,000 people")
+        check("num digits unit", TextRules.applyNumbers("it costs 20 dollars and 2 billion dollars overall"), "it costs $20 and $2 billion overall")
+        check("num list marker untouched", TextRules.applyNumbers("number one the pricing"), "number one the pricing")
+        check("num year", TextRules.applyNumbers("in two thousand and twenty six"), "in 2026")
+        check("num one point five million", TextRules.applyNumbers("one point five million bucks"), "$1.5 million")
+        check("num via commands", TextRules.applyCommands("it's twenty dollars a month"), "it's $20 a month")
+        check("num via fillers", TextRules.stripFillers(TextRules.applyCommands("it's twenty dollars a month")), "it's $20 a month")
+        do {
+            let d = ["Zentro: zentrow, zen tro", "Wispr Flow: whisper flow, whisperflow", "Demolisher: the molisha", "Yaptype"]
+            check("dict alias", TextRules.applyDictionary("i've so far done zentrow, but also i'm doing whisper flow at the moment.", d), "i've so far done Zentro, but also i'm doing Wispr Flow at the moment.")
+            check("dict multiword alias", TextRules.applyDictionary("people call me the startup the molisha because", d), "people call me the startup Demolisher because")
+            check("dict term case", TextRules.applyDictionary("yaptype is great and zentro too", d), "Yaptype is great and Zentro too")
+            check("dict no partial", TextRules.applyDictionary("the zentrowle shop", d), "the zentrowle shop")
+            check("dict terms", TextRules.dictionaryTerms(d), ["Zentro", "Wispr Flow", "Demolisher", "Yaptype"])
+        }
+        check("context names", TextRules.contextNames("Re: Zentro launch — Mail  Hi Alex, about the Wispr Flow reel. The plan is fine and Acme Hub too."), ["Zentro", "Alex", "Wispr Flow", "Acme Hub"])
+        check("context names skip common", TextRules.contextNames("Thanks Monday Hi The Window"), [])
+        do {
+            let l = TextRules.learnNames(heard: "i've so far done zentrow, but also i'm doing whisper flow at the moment", corrected: "i've so far done Zentro, but also i'm doing Wispr Flow at the moment")
+            check("learn names", l.map { "\($0.term)<-\($0.alias)" }, ["Zentro<-zentrow", "Wispr Flow<-whisper flow"])
+            let l2 = TextRules.learnNames(heard: "people call me the startup the molisha because", corrected: "people call me the startup Demolisher because")
+            check("learn multiword alias", l2.map { "\($0.term)<-\($0.alias)" }, ["Demolisher<-the molisha"])
+            let l3 = TextRules.learnNames(heard: "we ship on tuesday", corrected: "We ship on Thursday.")
+            check("learn ignores plain edits", l3.count, 0)
+            check("merge dictionary", TextRules.mergeDictionary(["Zentro: zentrow", "Yaptype"], learned: [("Zentro", "zen tro"), ("Wispr Flow", "whisper flow")]), ["Zentro: zentrow, zen tro", "Yaptype", "Wispr Flow: whisper flow"])
+        }
+        check("counted list", TextRules.applyCountedLists("hey Sam, there are three things Wispr Flow does really well: it's insanely fast, it's insanely accurate, it gets names right."), "hey Sam, there are three things Wispr Flow does really well:\n1. it's insanely fast\n2. it's insanely accurate\n3. it gets names right")
+        check("counted list after full stop", TextRules.applyCountedLists("hey Sam, there are three things a free solution also does really well. it's insanely fast, it's insanely accurate, and it gets names right."), "hey Sam, there are three things a free solution also does really well:\n1. it's insanely fast\n2. it's insanely accurate\n3. it gets names right")
+        check("counted list with and", TextRules.applyCountedLists("Two reasons: the price is right, and the timing works. Let me know."), "Two reasons:\n1. the price is right\n2. the timing works\nLet me know.")
+        check("counted list mismatch", TextRules.applyCountedLists("three things: fast and accurate."), "three things: fast and accurate.")
+        check("learn signal", TextRules.learnSignals(heard: "i'll do Vegemite toast i know kfc for lunch", corrected: "i'll do kfc for lunch"), ["i know"])
+        check("learn signal none", TextRules.learnSignals(heard: "we ship on tuesday", corrected: "We ship on Thursday."), [])
+        check("emoji laugh cry", TextRules.applyCommands("that was so funny laugh cry emoji, anyway see you"), "that was so funny 😂 anyway see you")
+        check("emoji crying laugh", TextRules.applyCommands("haha crying laugh emoji"), "haha 😂")
+        check("emoji article", TextRules.applyCommands("send me a thumbs up emoji when done"), "send me 👍 when done")
+        check("emoji plural", TextRules.applyCommands("fire emoji fire emoji"), "🔥 🔥")
+        check("emoji hyphen", TextRules.applyCommands("thumbs-up emoji"), "👍")
+        check("emoji none", TextRules.applyCommands("the emoji keyboard is open"), "the emoji keyboard is open")
+        check("supercasual rules", TextRules.casual("Sounds good, see you at eight. Bring the charger.", superCasual: true), "sounds good see you at eight. bring the charger")
+        check("casual keeps final stop", TextRules.casual("Sounds good, see you at eight."), "sounds good, see you at eight.")
+        check("message layout no comma", TextRules.layoutMessage("dear robin no worries at all i can deal with it this weekend kind regards jess"), "dear robin\n\nno worries at all i can deal with it this weekend\n\nkind regards\njess")
+        check("casual rules", TextRules.casual("Haha. No, I really don't want to do it, but can you do it?", keeping: ["Acme Hub"]), "haha no, i really don't want to do it, but can you do it?")
+        check("casual names kept", TextRules.casual("See you at acme hub, Alex! I'll bring Instagram stuff.", keeping: ["Acme Hub"]), "see you at Acme Hub, Alex i'll bring Instagram stuff.")
+        check("casual two sentences", TextRules.casual("Sounds good. See you at eight."), "sounds good. see you at eight.")
+        check("greeting line", TextRules.layoutGreeting("Hi Jordan, thanks for reaching out. I'll pass this time.\n\nKind regards\nTaylor"), "Hi Jordan,\n\nThanks for reaching out. I'll pass this time.\n\nKind regards\nTaylor")
+        check("greeting line casual", TextRules.layoutGreeting("dear robin, no worries at all.\n\nkind regards\njess"), "dear robin,\n\nno worries at all.\n\nkind regards\njess")
+        check("greeting line no comma", TextRules.layoutGreeting("dear robin no worries at all i can deal with it\n\nkind regards\njess"), "dear robin\n\nno worries at all i can deal with it\n\nkind regards\njess")
+        check("greeting chat untouched", TextRules.layoutGreeting("hey jordan, thanks for reaching out"), "hey jordan, thanks for reaching out")
+        check("question added", TextRules.questionMarks("hey alex, quick question. are you guys able to provide a free account or some credits"), "hey alex, quick question. are you guys able to provide a free account or some credits?")
+        check("question replaces stop", TextRules.questionMarks("Can you send it by Friday. Thanks."), "Can you send it by Friday? Thanks.")
+        check("question kept", TextRules.questionMarks("What we need is time. What is the plan?"), "What we need is time. What is the plan?")
+        check("question list", TextRules.questionMarks("- what is it that we're aiming for\n- where are we going"), "- what is it that we're aiming for?\n- where are we going?")
+        check("message layout casual", TextRules.layoutMessage("dear robin, no worries at all, i can deal with it this weekend. kind regards, jess"), "dear robin,\n\nno worries at all, i can deal with it this weekend.\n\nkind regards,\njess")
+        check("message layout no name", TextRules.layoutMessage("Hi Alex, thanks for the deck. Cheers"), "Hi Alex,\n\nthanks for the deck.\n\nCheers")
+        check("message layout chat untouched", TextRules.layoutMessage("no worries, cheers"), "no worries, cheers")
+        check("message layout thanks mid", TextRules.layoutMessage("hey, thanks for that"), "hey, thanks for that")
+        check("echo stripped", TextRules.stripEcho("thanks this is working now but a few extra problems. as seen above we are missing paragraphs", before: "Tthanks, this is working now, but a few extra problems"), "as seen above we are missing paragraphs")
+        check("echo kept", TextRules.stripEcho("as seen above we are missing paragraphs", before: "thanks this is working now"), "as seen above we are missing paragraphs")
+        check("wer same", TextRules.wordErrorRate(reference: "Hello, world!", hypothesis: "hello world"), 0)
+        check("wer half", TextRules.wordErrorRate(reference: "we ship on thursday", hypothesis: "we ship on tuesday tomorrow"), 0.5)
+        check("wer empty", TextRules.wordErrorRate(reference: "", hypothesis: ""), 0)
+        // How much the rule layer costs per dictation (all pre- and post-model rules on a 60-word transcript).
+        let sample = "um so look mate i really don't want to trouble you that much but i have a thesing what thief i have a few things i want to discuss firstly what is it that we're aiming for sorry what are we aiming for secondly what timeline we're targeting thirdly where are we going to execute this and sam at example dot com new line cheers"
+        let t0 = Date()
+        for _ in 0..<200 { _ = TextRules.questionMarks(TextRules.applyLists(TextRules.layoutGreeting(TextRules.stripFillers(TextRules.applyCommands(sample))))) }
+        print(String(format: "rules: %.2f ms per 60-word dictation", Date().timeIntervalSince(t0) * 1000 / 200))
+        print(failures == 0 ? "selftest: all passed" : "selftest: \(failures) failed")
+        return failures == 0
+    }
+
+    private static func check<T: Equatable>(_ name: String, _ got: T, _ want: T) {
+        if got == want { print("  ok   \(name)") } else { failures += 1; print("  FAIL \(name)\n       got:  \(got)\n       want: \(want)") }
+    }
+}
