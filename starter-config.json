@@ -28,7 +28,8 @@
     "com.mitchellh.ghostty",
     "com.github.wez.wezterm",
     "co.zeit.hyper",
-    "com.microsoft.VSCode"
+    "com.microsoft.VSCode",
+    "com.todesktop.230313mzl4w4u92"
   ],
   "memory" : "",
   "microphone" : "",

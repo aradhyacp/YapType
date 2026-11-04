@@ -53,7 +53,8 @@ struct Config: Codable {
     /// Apps where live text is not typed while talking (only the final paste): terminals redraw on every
     /// keystroke, which made removing the live text take longer than the paste.
     var liveTextExcluded: [String] = ["com.apple.Terminal", "com.googlecode.iterm2", "dev.warp.Warp-Stable", "net.kovidgoyal.kitty",
-                                      "io.alacritty", "com.mitchellh.ghostty", "com.github.wez.wezterm", "co.zeit.hyper", "com.microsoft.VSCode"]
+                                      "io.alacritty", "com.mitchellh.ghostty", "com.github.wez.wezterm", "co.zeit.hyper", "com.microsoft.VSCode",
+                                      "com.todesktop.230313mzl4w4u92"]
     /// OpenRouter key. Stored in plaintext in config.json on this Mac.
     var openRouterAPIKey = ""
     /// Primary polishing model, then the fallback used on rate limits or model errors.
