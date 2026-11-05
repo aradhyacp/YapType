@@ -1,3 +1,4 @@
+import CoreML
 import FluidAudio
 import Foundation
 import os
@@ -13,10 +14,36 @@ actor Transcriber {
 
     func load(version: String) async throws {
         let v: AsrModelVersion = version == "v3" ? .v3 : .v2
-        let models = try await AsrModels.downloadAndLoad(version: v)
+        let started = Date()
+
+        // Parakeet's encoder is the only expensive part. On the Neural Engine CoreML has to compile a ~445 MB
+        // execution plan the first time and after a cache miss; that is the 15-30 s "loading" delay after a
+        // relaunch. Run every component on the CPU instead: the model loads from disk in under a second, the
+        // compiled BNNSGraph kernels are reusable across launches, and decoding is still about 18 ms of compute
+        // per second of audio on Apple Silicon.
+        let config = MLModelConfiguration()
+        config.computeUnits = .cpuOnly
+
+        // Load straight from disk when the model is already there. `downloadAndLoad` also checks the cache, but
+        // this makes the local-only path explicit and keeps a missing network from ever delaying startup.
+        let cache = AsrModels.defaultCacheDirectory(for: v)
+        let cached = AsrModels.modelsExist(at: cache, version: v)
+        let models: AsrModels
+        if cached {
+            models = try await AsrModels.loadFromCache(
+                configuration: config, version: v, encoderComputeUnits: .cpuOnly)
+        } else {
+            models = try await AsrModels.downloadAndLoad(
+                configuration: config, version: v, encoderComputeUnits: .cpuOnly)
+        }
+        let loaded = Date()
+
         let m = AsrManager(config: .default)
         try await m.loadModels(models)
         manager = m
+        let totalMS = Int(Date().timeIntervalSince(started) * 1000)
+        let modelMS = Int(loaded.timeIntervalSince(started) * 1000)
+        log.info("Parakeet \(version, privacy: .public) ready in \(totalMS) ms (cache: \(cached ? "hit" : "download", privacy: .public), models: \(modelMS) ms, CPU)")
     }
 
     // MARK: Live dictation (text while talking)
