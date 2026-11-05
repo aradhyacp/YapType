@@ -17,6 +17,14 @@ if CommandLine.arguments.contains("--context") {
     print("window title: \(c.windowTitle)\nbefore cursor: \(c.before.count) chars\nafter cursor: \(c.after.count) chars\nneeds leading space: \(c.needsLeadingSpace)")
     exit(0)
 }
+if CommandLine.arguments.contains("--prewarm") {
+    Task { exit(await LoadTest.prewarm() ? 0 : 1) }
+    RunLoop.main.run()
+}
+if CommandLine.arguments.contains("--loadtest") {
+    Task { exit(await LoadTest.run() ? 0 : 1) }
+    RunLoop.main.run()
+}
 if let i = CommandLine.arguments.firstIndex(of: "--livetest"), i + 1 < CommandLine.arguments.count {
     let path = CommandLine.arguments[i + 1]
     Task { @MainActor in exit(await LiveTest.run(path) ? 0 : 1) }
