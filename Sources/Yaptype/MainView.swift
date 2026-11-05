@@ -193,7 +193,7 @@ struct HomePage: View {
     private var enginePanel: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Engines").font(.system(size: 16, weight: .semibold)).foregroundStyle(Theme.text)
-            engineLine("Parakeet \(store.config.asrVersion)", ok: store.speechReady)
+            engineLine(parakeetLabel, ok: store.speechReady)
             engineLine(store.polishReady ? "OpenRouter · \(shortModel(store.config.openRouterModel))" : "OpenRouter · no API key",
                        ok: store.polishReady)
         }
@@ -201,6 +201,15 @@ struct HomePage: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.row, in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.border))
+    }
+
+    /// Keep the dot meaningful while the model is being fetched or loaded. On a warm launch this is only visible
+    /// for a fraction of a second; on a first download it explains why the dot is still gray.
+    private var parakeetLabel: String {
+        let name = "Parakeet \(store.config.asrVersion)"
+        if store.speechReady { return name }
+        if store.status.hasPrefix("Error") { return name + " · failed" }
+        return name + " · loading…"
     }
 
     private func engineLine(_ name: String, ok: Bool) -> some View {

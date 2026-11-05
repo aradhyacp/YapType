@@ -108,6 +108,12 @@ Parakeet is downloaded automatically on first launch into:
 
 Switch between them in **Models** or **Settings**. The download is roughly 600 MB and happens once.
 
+The model is loaded from that folder on every launch. Yaptype runs Parakeet on the CPU rather than the Neural
+Engine: CoreML otherwise spends 15-30 seconds compiling the encoder the first time the ANE cache is cold, which
+looked like a download every time the app reopened. The CPU path reads the cached model in well under a second
+and does not re-download anything. If the model folder is missing, the app downloads it once and then uses it
+locally from then on.
+
 Text polishing uses OpenRouter only. There is no local LLM and no model file to manage.
 
 ## Configuration
@@ -168,6 +174,7 @@ Run the binary directly for diagnostics:
 /Applications/Yaptype.app/Contents/MacOS/Yaptype --eval
 /Applications/Yaptype.app/Contents/MacOS/Yaptype --context
 /Applications/Yaptype.app/Contents/MacOS/Yaptype --mictest
+/Applications/Yaptype.app/Contents/MacOS/Yaptype --loadtest --allcpu
 ```
 
 - `--selftest` runs the deterministic text-rule checks.
@@ -177,6 +184,8 @@ Run the binary directly for diagnostics:
 - `--eval` replays corrected dictations that still have audio clips and scores them.
 - `--context` prints what Accessibility sees for the frontmost window (sizes only, no field text).
 - `--mictest` records a few seconds and reports what the selected microphone delivered.
+- `--loadtest` loads the cached Parakeet model and prints load and transcription timings. Pass `--wav=<file>` to
+  time a clip, or `--compute=cpuAndGPU|cpuAndNeuralEngine|cpuOnly` to compare backends.
 
 ## Troubleshooting
 
@@ -197,6 +206,12 @@ ships with Professional as the default for every app.
 **The app will not open after a rebuild.** Build and install again with `./scripts/build.sh --install`. The app is
 ad-hoc signed for local use, not notarized for distribution. If Gatekeeper complains, right-click the app and
 choose Open.
+
+**Startup is slow once after a fresh install or model download.** The app has to prepare the cached Parakeet
+weights; `./scripts/build.sh --install` prewarms them, so normal relaunches show “Ready” almost immediately. If
+startup stays slow, check for the line `Parakeet v2 ready in … ms (cache: hit …)` in Console; `cache: download`
+means the model folder in `~/Library/Application Support/FluidAudio/Models/` is missing and is being fetched
+again.
 
 **OpenRouter returns 429 or 5xx.** Yaptype automatically tries the fallback model, then falls back to the local
 deterministic rules. You can change either model ID in Settings.
