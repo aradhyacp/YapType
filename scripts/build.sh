@@ -33,4 +33,8 @@ if [[ "${1:-}" == "--install" ]]; then
   rm -rf /Applications/Yaptype.app
   cp -R "$APP" /Applications/Yaptype.app
   echo "Installed /Applications/Yaptype.app"
+  # CoreML keys part of its compile cache to the signed binary. Warm it now so the first launch after an install
+  # does not spend several seconds preparing Parakeet. No-op when the model has not been downloaded yet.
+  /Applications/Yaptype.app/Contents/MacOS/Yaptype --prewarm >/dev/null 2>&1 || true
+  echo "Prepared speech model cache"
 fi
