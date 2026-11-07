@@ -1,221 +1,197 @@
+<div align="center">
+
 # Yaptype
 
-Fast, private-by-default voice dictation for macOS. Hold **⌘;**, talk, release, and the cleaned-up text is pasted
-wherever your cursor is.
+**Hold a key. Talk. Release. Clean text lands wherever your cursor is.**
 
-Yaptype keeps speech recognition on your Mac with NVIDIA Parakeet. Text polishing is the only network step: the
-transcript is sent to [OpenRouter](https://openrouter.ai) for cleanup, then pasted locally. If OpenRouter is
-unavailable, Yaptype still pastes the deterministic rules-cleaned transcript, so a dictation is never lost.
+Private-by-default voice dictation for macOS, built as an open alternative to Wispr Flow.
 
-## What runs where
+![platform](https://img.shields.io/badge/platform-macOS%2015%2B-black?style=flat-square)
+![silicon](https://img.shields.io/badge/Apple%20Silicon-required-black?style=flat-square)
+![swift](https://img.shields.io/badge/Swift-5-F05138?style=flat-square)
+![license](https://img.shields.io/badge/license-PolyForm%20Noncommercial-blue?style=flat-square)
 
-| Step | Where it runs |
-| --- | --- |
-| Microphone capture and live waveform | This Mac |
-| Speech-to-text (Parakeet TDT 0.6B, CoreML via FluidAudio) | This Mac |
-| Filler removal, spoken commands, dictionary, numbers, list layout | This Mac |
-| Tone and grammar polishing | OpenRouter (text only) |
-| History, statistics, audio clips | This Mac |
+</div>
 
-Microphone audio is never uploaded. OpenRouter receives the transcript plus the prompt context (tone, dictionary,
-memory, and optionally the text around your cursor).
+---
+
+## Why Yaptype
+
+- **Your voice stays on your Mac.** Recording and speech recognition run locally with NVIDIA Parakeet on CoreML.
+- **Only text leaves the device, and only for polishing.** Transcripts go to OpenRouter for cleanup. Audio never does.
+- **It never loses a dictation.** If polishing fails, Yaptype pastes the rules-cleaned transcript instead.
+- **Light on resources.** Idle use is about half a percent of one CPU core and under 100 MB of memory.
+
+## How it works
+
+```mermaid
+flowchart LR
+    A["🎙️ Hold ⌘;"] --> B["Parakeet ASR<br/><sub>on this Mac</sub>"]
+    B --> C["Rules<br/><sub>fillers · commands · dictionary</sub>"]
+    C --> D["Polish<br/><sub>OpenRouter · text only</sub>"]
+    D --> E["📋 Paste at cursor"]
+    C -. "fallback if offline" .-> E
+```
+
+## Performance
+
+Measured on a development Mac with `top` and `footprint`, while Yaptype was idle and during one dictation.
+
+| | Idle | While dictating |
+| --- | --- | --- |
+| **CPU** | ~0.5% of one core | peaks around 54% of one core |
+| **Memory (footprint)** | 92 MB | about 100 MB resident |
+| **Threads** | 12 | 16 |
+| **Network connections** | none | only when polishing |
+| **Power impact** | 0.5 | low, short bursts |
+
+Speech models take about 540 MB of disk space and download once on first launch.
 
 ## Requirements
 
-- Apple Silicon Mac, macOS 15 or newer.
-- Xcode Command Line Tools (`xcode-select --install`). Xcode itself is not required.
-- An OpenRouter API key for polishing. The key is optional: without it, Yaptype runs rules-only.
+- Apple Silicon Mac running macOS 15 or newer
+- Xcode Command Line Tools: `xcode-select --install` (full Xcode is not needed)
+- An [OpenRouter](https://openrouter.ai) API key for polishing. Optional; without it Yaptype runs rules-only.
 
-The first build downloads public Swift packages and one public binary artifact from GitHub Releases. No GitHub
-account, token, or keychain credential is needed.
+## Quick start
 
-## Build and install
+```sh
+git clone git@github.com:aradhyacp/YapType.git
+cd YapType
+./scripts/build.sh --install     # first build downloads dependencies; takes a few minutes
+open /Applications/Yaptype.app
+```
 
-1. Open Terminal and install the command line tools if you have not already:
+Then:
 
-   ```sh
-   xcode-select --install
-   ```
+1. **Grant permissions** when macOS asks.
+   - **Microphone** is required for dictation.
+   - **Accessibility** is required for the global hotkey and for pasting into other apps.
+   - **Contacts and Calendar** are optional. They boost names in recognition and stay on your Mac.
+2. **Add your OpenRouter key** under **Settings › Polishing**. Skip this to stay fully local.
+3. **Dictate.** Hold **⌘;** anywhere, speak, and release to paste. A quick tap starts toggle mode; tap again to stop.
 
-2. Go to the project folder:
+## Controls
 
-   ```sh
-   cd /Users/aradhya/learnings/yaptype
-   ```
+| Shortcut | Action |
+| --- | --- |
+| **⌘;** (hold) | Dictate; release to paste |
+| **⌘;** (tap) | Start toggle mode; tap again to stop |
+| **⌘⇧;** | Dictate with the alternate tone |
+| **Esc** | Cancel the current recording |
 
-3. Build the release app and install it to `/Applications`:
+## Tones
 
-   ```sh
-   ./scripts/build.sh --install
-   ```
+Every app uses **Professional** by default: sentence case, punctuation, and clean paragraphs.
 
-   The first build takes a few minutes because it downloads FluidAudio and the Parakeet runtime. Later builds are
-   much faster. To build without installing, run `./scripts/build.sh`; the app appears in `dist/Yaptype.app`.
-
-4. Open Yaptype:
-
-   ```sh
-   open /Applications/Yaptype.app
-   ```
-
-5. Grant permissions when macOS asks:
-
-   - **Microphone** — required for dictation.
-   - **Accessibility** — required for the global hotkey and for pasting into other apps. Enable Yaptype in
-     System Settings › Privacy & Security › Accessibility.
-   - **Contacts / Calendar** — optional. When enabled, names from Contacts and today's calendar are boosted in
-     speech recognition. They stay on this Mac.
-
-   After a rebuild, macOS may ask for Accessibility again. The build script signs with a stable identifier-based
-   designated requirement, which normally preserves the grant. If the hotkey stops working, toggle Yaptype off and
-   back on in Accessibility settings.
-
-6. Add your OpenRouter key. Open Yaptype's window and go to **Settings › Polishing**, paste the key into
-   **OpenRouter API key**, and close the window. The key is saved in
-   `~/Library/Application Support/Yaptype/config.json` as plaintext, as requested for this build.
-
-   You can also edit the file directly:
-
-   ```json
-   "openRouterAPIKey": "sk-or-..."
-   ```
-
-   The default models are:
-
-   - Primary: `nvidia/nemotron-3-ultra-550b-a55b:free`
-   - Fallback: `google/gemma-4-26b-a4b-it:free`
-
-   Both are free OpenRouter models. Free models can rate-limit; Yaptype tries the fallback, then pastes rules-only
-   text if both fail.
-
-7. Hold **⌘;** anywhere and start talking. Release to paste. A quick tap starts toggle mode; press again to stop.
-   **Esc** cancels the current recording. **⌘⇧;** uses the alternate tone for the frontmost app.
-
-By default every app uses the **Professional** tone: normal sentence case, punctuation, and paragraph/list layout.
-If you want a different style for a particular app, add an override under **Style › Apps**. Otherwise leave the
-Apps list empty so every app gets the same formatting.
+Pick a different style per app under **Style › Apps**, or leave the list empty for consistent formatting everywhere. Built-in tones include Professional, Casual, and Verbatim.
 
 ## Models
 
-Parakeet is downloaded automatically on first launch into:
+| Version | Languages | Best for |
+| --- | --- | --- |
+| **v2** | English | Highest accuracy for English |
+| **v3** | 25 European languages | Multilingual dictation |
 
-```text
-~/Library/Application Support/FluidAudio/Models/
-```
-
-- **v2** — English-only, the most accurate for English.
-- **v3** — 25 European languages.
-
-Switch between them in **Models** or **Settings**. The download is roughly 600 MB and happens once.
-
-The model is loaded from that folder on every launch. Yaptype runs Parakeet on the CPU rather than the Neural
-Engine: CoreML otherwise spends 15-30 seconds compiling the encoder the first time the ANE cache is cold, which
-looked like a download every time the app reopened. The CPU path reads the cached model in well under a second
-and does not re-download anything. If the model folder is missing, the app downloads it once and then uses it
-locally from then on.
-
-Text polishing uses OpenRouter only. There is no local LLM and no model file to manage.
+Switch versions in **Models** or **Settings**. Models are stored in `~/Library/Application Support/FluidAudio/Models/`.
 
 ## Configuration
 
-Everything user-configurable lives in:
+All settings live in one file:
 
 ```text
 ~/Library/Application Support/Yaptype/config.json
 ```
 
-Useful fields:
+Start from the defaults in [`starter-config.json`](starter-config.json). Common fields:
 
-| Field | Meaning |
+| Field | What it controls |
 | --- | --- |
-| `openRouterAPIKey` | OpenRouter key. Empty disables polishing. |
-| `openRouterModel` | Primary polishing model. |
-| `openRouterFallbackModel` | Used when the primary is rate-limited or unavailable. |
-| `asrVersion` | `"v2"` (English) or `"v3"` (multilingual). |
-| `dictionary` | Terms and sound-alikes, e.g. `"Yaptype: yap type, yap-type"`. |
-| `tones` | Name → instruction. An empty instruction means verbatim. |
-| `defaultTones` | Tone used by every app, and the alternate tone for ⌘⇧;. Defaults to Professional / Casual. |
-| `appTones` | Optional bundle-ID overrides. Empty by default, so formatting stays consistent everywhere. |
-| `memory` | Background about you for the polish prompt. |
-| `keepClips` | Save each dictation's audio in `clips/` for `--eval`. |
+| `openRouterAPIKey` | Polishing key. Empty means rules-only. |
+| `openRouterModel` / `openRouterFallbackModel` | Primary and backup polishing models |
+| `asrVersion` | `"v2"` (English) or `"v3"` (multilingual) |
+| `dictionary` | Custom terms and how they sound, e.g. `"Yaptype: yap type"` |
+| `tones` / `defaultTones` / `appTones` | Writing styles and per-app overrides |
+| `memory` | Background about you that guides polishing |
+| `keepClips` | Save each dictation's audio locally for evaluation |
 
-`starter-config.json` in this repository is the default configuration. To start from a clean config:
+> **Security note:** the OpenRouter key is stored in plain text in `config.json`. Keep that file private and never commit it. The file lives outside this repository, so `git` won't pick it up.
 
-```sh
-mkdir -p ~/Library/Application\ Support/Yaptype
-cp starter-config.json ~/Library/Application\ Support/Yaptype/config.json
-```
+## Privacy
 
-Then add your OpenRouter key to `openRouterAPIKey`.
+| Data | Where it goes |
+| --- | --- |
+| Microphone audio | Stays on your Mac. Never uploaded. |
+| Speech-to-text | Runs on your Mac. |
+| Transcript for polishing | Sent to OpenRouter as text, with your tone, dictionary, and memory. |
+| History, stats, audio clips | Stored locally in `~/Library/Application Support/Yaptype/`. |
+| Contacts and calendar names | Read only if you enable them. Stay on your Mac. |
 
-### Privacy of the key
+Audio clips are saved only when `keepClips` is on.
 
-The key is stored in plaintext in `config.json`. Do not commit that file, share it, or include it in a screenshot.
-The repository's `.gitignore` excludes build output, not your Application Support folder; the config lives outside
-the repository.
+## Command-line tools
 
-## Data and privacy
-
-- Audio clips are saved only when `keepClips` is on, and only under `~/Library/Application Support/Yaptype/clips/`.
-- History and statistics are local JSON files in the same folder.
-- Contacts and calendar names are read only when you enable that setting and grant permission.
-- OpenRouter receives text, never audio. Its handling of that text is governed by OpenRouter's terms and the model
-  provider's policies.
-
-## Command-line helpers
-
-Run the binary directly for diagnostics:
+Diagnostics run from the app binary:
 
 ```sh
-/Applications/Yaptype.app/Contents/MacOS/Yaptype --selftest
-/Applications/Yaptype.app/Contents/MacOS/Yaptype --dumpconfig
-/Applications/Yaptype.app/Contents/MacOS/Yaptype --dumpprompt professional
-/Applications/Yaptype.app/Contents/MacOS/Yaptype --polishtest "um so we ship on thursday"
-/Applications/Yaptype.app/Contents/MacOS/Yaptype --eval
-/Applications/Yaptype.app/Contents/MacOS/Yaptype --context
-/Applications/Yaptype.app/Contents/MacOS/Yaptype --mictest
-/Applications/Yaptype.app/Contents/MacOS/Yaptype --loadtest --allcpu
+Yaptype --selftest                  # deterministic text-rule checks
+Yaptype --polishtest "um so we ship thursday"
+Yaptype --dumpprompt professional   # show the exact prompt, without calling the API
+Yaptype --eval                      # score saved dictations that have audio
+Yaptype --mictest                   # check what your microphone delivers
+Yaptype --context                   # what Accessibility sees in the front window
 ```
 
-- `--selftest` runs the deterministic text-rule checks.
-- `--dumpconfig` prints the default config JSON.
-- `--dumpprompt <tone>` prints the system and user prompt without calling OpenRouter.
-- `--polishtest` runs the full polish path for one transcript.
-- `--eval` replays corrected dictations that still have audio clips and scores them.
-- `--context` prints what Accessibility sees for the frontmost window (sizes only, no field text).
-- `--mictest` records a few seconds and reports what the selected microphone delivered.
-- `--loadtest` loads the cached Parakeet model and prints load and transcription timings. Pass `--wav=<file>` to
-  time a clip, or `--compute=cpuAndGPU|cpuAndNeuralEngine|cpuOnly` to compare backends.
+Replace `Yaptype` with `/Applications/Yaptype.app/Contents/MacOS/Yaptype`, or add that path to your shell.
 
 ## Troubleshooting
 
-**The hotkey does nothing.** Grant Accessibility, then quit and reopen Yaptype. Check that another app is not
-holding ⌘;.
+<details>
+<summary><b>The hotkey does nothing</b></summary>
 
-**“Microphone gave silence.”** Pick a different input in Settings › Microphone. The built-in mic is silent while
-the lid is closed; AirPods work but are narrowband.
+Grant Accessibility in **System Settings › Privacy & Security › Accessibility**, then quit and reopen Yaptype. Make sure no other app is using ⌘;.
 
-**Text is pasted but not polished.** Add an OpenRouter key in Settings › Polishing. Check the status in the menu bar:
-without a key it says “Ready (rules only…)”. Also check the OpenRouter account has access to the configured models;
-free models can be rate-limited.
+</details>
 
-**Text comes out lowercase or without punctuation.** Open **Style › Apps**. An app may have an override set to
-Casual or Super casual, or an editor may be set to Verbatim. Remove the override or choose Professional. Yaptype
-ships with Professional as the default for every app.
+<details>
+<summary><b>"Microphone gave silence"</b></summary>
 
-**The app will not open after a rebuild.** Build and install again with `./scripts/build.sh --install`. The app is
-ad-hoc signed for local use, not notarized for distribution. If Gatekeeper complains, right-click the app and
-choose Open.
+Pick another input in **Settings › Microphone**. The built-in mic goes silent with the lid closed. AirPods work, but they are narrowband.
 
-**Startup is slow once after a fresh install or model download.** The app has to prepare the cached Parakeet
-weights; `./scripts/build.sh --install` prewarms them, so normal relaunches show “Ready” almost immediately. If
-startup stays slow, check for the line `Parakeet v2 ready in … ms (cache: hit …)` in Console; `cache: download`
-means the model folder in `~/Library/Application Support/FluidAudio/Models/` is missing and is being fetched
-again.
+</details>
 
-**OpenRouter returns 429 or 5xx.** Yaptype automatically tries the fallback model, then falls back to the local
-deterministic rules. You can change either model ID in Settings.
+<details>
+<summary><b>Text is pasted but not polished</b></summary>
+
+Add an OpenRouter key under **Settings › Polishing**. The menu bar status shows "Ready (rules only…)" when no key is set.
+
+</details>
+
+<details>
+<summary><b>Text comes out lowercase or without punctuation</b></summary>
+
+An app may have an override set to Casual or Verbatim. Remove it under **Style › Apps**, or choose Professional.
+
+</details>
+
+<details>
+<summary><b>OpenRouter returns 429 or 5xx</b></summary>
+
+Yaptype tries the fallback model, then pastes rules-only text. Free models can be rate-limited, so you can switch models in Settings.
+
+</details>
+
+<details>
+<summary><b>The app won't open after a rebuild</b></summary>
+
+Yaptype is ad-hoc signed for local use, not notarized. Right-click the app and choose **Open**.
+
+</details>
+
+## Contributing
+
+Contributions are welcome. Check the [open issues](https://github.com/aradhyacp/YapType/issues), especially the ones labelled `good first issue` and `help wanted`.
 
 ## License
 
-Yaptype is licensed under the PolyForm Noncommercial License 1.0.0. See `LICENSE` and `NOTICE.md`.
+Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE). Free for personal, research, and other noncommercial use. See [NOTICE.md](NOTICE.md) for third-party components.
